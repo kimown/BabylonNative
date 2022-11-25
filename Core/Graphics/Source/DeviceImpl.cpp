@@ -155,8 +155,12 @@ namespace Babylon::Graphics
 
             // Initialize bgfx.
             auto& init{m_state.Bgfx.InitState};
+            init.debug= true;
+
             bgfx::setPlatformData(init.platformData);
             bgfx::init(init);
+            bgfx::setDebug(BGFX_DEBUG_TEXT | BGFX_DEBUG_STATS);
+
 
             m_state.Bgfx.Initialized = true;
             m_state.Bgfx.Dirty = false;
