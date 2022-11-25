@@ -42,7 +42,9 @@ namespace Babylon::Plugins
 
 
                     m_inspector->start(port, appName);
-                    m_inspector->waitForDebugger();
+                    if(strcmp(getenv("stdout_inspect_brk"),"1")==0){
+                        m_inspector->waitForDebugger();
+                    }
                 });
             }
 
