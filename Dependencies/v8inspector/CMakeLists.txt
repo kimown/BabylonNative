@@ -74,7 +74,7 @@ set(SOURCES
     "Source/V8InspectorUtils.cpp")
 
 add_library(v8inspector ${SOURCES})
-warnings_as_errors(v8inspector)
+#warnings_as_errors(v8inspector)
 
 target_include_directories(v8inspector PUBLIC "Include")
 target_include_directories(v8inspector PRIVATE "Source")
@@ -86,4 +86,9 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 target_link_to_dependencies(v8inspector PRIVATE asio)
 target_link_to_dependencies(v8inspector PRIVATE llhttp)
 target_link_to_dependencies(v8inspector PRIVATE javascript_engine)
+
+target_include_directories(v8inspector PUBLIC "/usr/include/v8")
+find_library(V8_LIBRARY v8)
+target_link_to_dependencies(v8inspector INTERFACE ${V8_LIBRARY})
+
 disable_warnings(v8inspector)
