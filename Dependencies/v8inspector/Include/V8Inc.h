@@ -1,8 +1,8 @@
 #pragma once
 
 #ifndef __clang__
-#pragma warning(push)
-#pragma warning(disable: 4100 4267 4127)
+//#pragma warning(push)
+//#pragma warning(disable: 4100 4267 4127)
 #endif
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <v8.h>
@@ -10,5 +10,5 @@
 #include <libplatform/libplatform.h>
 
 #ifndef __clang__
-#pragma warning(pop)
+//#pragma warning(pop)
 #endif
