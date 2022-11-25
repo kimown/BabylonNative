@@ -5,7 +5,7 @@
 #include "V8InspectorSocketServer.h"
 #include "V8InspectorUtils.h"
 
-#include <v8-inspector.h>
+#include </usr/include/nodejs/deps/v8/include/v8-inspector.h>
 #include <v8-platform.h>
 
 #include <string.h>
