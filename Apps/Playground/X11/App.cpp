@@ -17,7 +17,7 @@
 #include <Babylon/Polyfills/Window.h>
 #include <Babylon/Polyfills/XMLHttpRequest.h>
 #include <Babylon/Polyfills/Canvas.h>
-
+#include <Babylon/Plugins/ChromeDevTools.h>
 static const char* s_applicationName  = "BabylonNative Playground";
 static const char* s_applicationClass = "Playground";
 
@@ -26,6 +26,7 @@ std::unique_ptr<Babylon::Graphics::DeviceUpdate> update{};
 std::unique_ptr<Babylon::AppRuntime> runtime{};
 Babylon::Plugins::NativeInput* nativeInput{};
 std::unique_ptr<Babylon::Polyfills::Canvas> nativeCanvas{};
+std::unique_ptr<Babylon::Plugins::ChromeDevTools> chromeDevTools{};
 
 namespace
 {
@@ -54,6 +55,8 @@ namespace
             update->Finish();
             device->FinishRenderingCurrentFrame();
         }
+        chromeDevTools.reset();
+
         runtime.reset();
         nativeInput = {};
         device.reset();
@@ -98,6 +101,11 @@ namespace
             Babylon::Plugins::NativeOptimizations::Initialize(env);
 
             nativeInput = &Babylon::Plugins::NativeInput::CreateForJavaScript(env);
+            chromeDevTools = std::make_unique<Babylon::Plugins::ChromeDevTools>(Babylon::Plugins::ChromeDevTools::Initialize(env));
+            if (chromeDevTools->SupportsInspector())
+            {
+                chromeDevTools->StartInspector(5643, "BabylonNative Playground");
+            }
         });
 
 
