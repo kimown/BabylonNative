@@ -11,6 +11,9 @@
 #include <stdexcept>
 #include <codecvt>
 
+#include <string>
+#include <locale>
+
 namespace Babylon {
 namespace utils {
 
