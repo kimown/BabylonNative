@@ -40,7 +40,9 @@ namespace Babylon::Plugins
                         m_inspector->stop();
                     }
 
+
                     m_inspector->start(port, appName);
+                    m_inspector->waitForDebugger();
                 });
             }
 
