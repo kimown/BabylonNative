@@ -4,6 +4,7 @@
 #pragma once
 
 #include <V8Inc.h>
+#include <cstring>
 
 #include <string>
 #include <algorithm>
