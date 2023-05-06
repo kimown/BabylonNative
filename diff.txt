@@ -1,0 +1,199 @@
+diff --git a/Apps/Playground/X11/App.cpp b/Apps/Playground/X11/App.cpp
+index db83e7b..58c1775 100644
+--- a/Apps/Playground/X11/App.cpp
++++ b/Apps/Playground/X11/App.cpp
+@@ -17,7 +17,7 @@
+ #include <Babylon/Polyfills/Window.h>
+ #include <Babylon/Polyfills/XMLHttpRequest.h>
+ #include <Babylon/Polyfills/Canvas.h>
+-
++#include <Babylon/Plugins/ChromeDevTools.h>
+ static const char* s_applicationName  = "BabylonNative Playground";
+ static const char* s_applicationClass = "Playground";
+ 
+@@ -26,6 +26,7 @@ std::unique_ptr<Babylon::Graphics::DeviceUpdate> update{};
+ std::unique_ptr<Babylon::AppRuntime> runtime{};
+ Babylon::Plugins::NativeInput* nativeInput{};
+ std::unique_ptr<Babylon::Polyfills::Canvas> nativeCanvas{};
++std::unique_ptr<Babylon::Plugins::ChromeDevTools> chromeDevTools{};
+ 
+ namespace
+ {
+@@ -54,6 +55,8 @@ namespace
+             update->Finish();
+             device->FinishRenderingCurrentFrame();
+         }
++        chromeDevTools.reset();
++
+         runtime.reset();
+         nativeInput = {};
+         device.reset();
+@@ -98,6 +101,11 @@ namespace
+             Babylon::Plugins::NativeOptimizations::Initialize(env);
+ 
+             nativeInput = &Babylon::Plugins::NativeInput::CreateForJavaScript(env);
++            chromeDevTools = std::make_unique<Babylon::Plugins::ChromeDevTools>(Babylon::Plugins::ChromeDevTools::Initialize(env));
++            if (chromeDevTools->SupportsInspector())
++            {
++                chromeDevTools->StartInspector(5643, "BabylonNative Playground");
++            }
+         });
+ 
+ 
+diff --git a/Core/Graphics/Source/DeviceImpl.cpp b/Core/Graphics/Source/DeviceImpl.cpp
+index d9b54d6..f10e294 100644
+--- a/Core/Graphics/Source/DeviceImpl.cpp
++++ b/Core/Graphics/Source/DeviceImpl.cpp
+@@ -155,8 +155,12 @@ namespace Babylon::Graphics
+ 
+             // Initialize bgfx.
+             auto& init{m_state.Bgfx.InitState};
++            init.debug= true;
++
+             bgfx::setPlatformData(init.platformData);
+             bgfx::init(init);
++            bgfx::setDebug(BGFX_DEBUG_TEXT | BGFX_DEBUG_STATS);
++
+ 
+             m_state.Bgfx.Initialized = true;
+             m_state.Bgfx.Dirty = false;
+diff --git a/Dependencies/CMakeExtensions/CMakeLists.txt b/Dependencies/CMakeExtensions/CMakeLists.txt
+index 630393a..20f1e23 100644
+--- a/Dependencies/CMakeExtensions/CMakeLists.txt
++++ b/Dependencies/CMakeExtensions/CMakeLists.txt
+@@ -134,7 +134,9 @@ function(set_cpu_platform_arch)
+         set(CPU_ARCH "x64" PARENT_SCOPE)
+         set(PLATFORM_ARCH "darwin" PARENT_SCOPE)
+     else()
+-        message(FATAL_ERROR "Unrecognized compiler: ${CMAKE_CXX_COMPILER}")
++        set(CPU_ARCH "x64" PARENT_SCOPE)
++        set(PLATFORM_ARCH "linux" PARENT_SCOPE)
++        message( "lalalalalal print compiler: ${CMAKE_CXX_COMPILER}")
+     endif()
+ endfunction()
+ 
+diff --git a/Dependencies/CMakeLists.txt b/Dependencies/CMakeLists.txt
+index 37d9daa..3943d81 100644
+--- a/Dependencies/CMakeLists.txt
++++ b/Dependencies/CMakeLists.txt
+@@ -170,9 +170,7 @@ endif()
+ # --------------------------- v8inspector ---------------------------
+ # Dependencies: none
+ # Currently only supported on Win32 x86/x64 and Android
+-if(NAPI_JAVASCRIPT_ENGINE STREQUAL "V8" AND ((WIN32 AND NOT (WINDOWS_STORE OR CMAKE_GENERATOR_PLATFORM_UPPER MATCHES "ARM.*")) OR ANDROID))
+-    add_subdirectory(v8inspector)
+-    set_property(TARGET v8inspector PROPERTY FOLDER Dependencies)
+-    set_property(TARGET v8inspector PROPERTY UNITY_BUILD false)
+-    set_property(TARGET llhttp PROPERTY UNITY_BUILD false)
+-endif()
++add_subdirectory(v8inspector)
++set_property(TARGET v8inspector PROPERTY FOLDER Dependencies)
++set_property(TARGET v8inspector PROPERTY UNITY_BUILD false)
++set_property(TARGET llhttp PROPERTY UNITY_BUILD false)
+diff --git a/Dependencies/bgfx.cmake b/Dependencies/bgfx.cmake
+--- a/Dependencies/bgfx.cmake
++++ b/Dependencies/bgfx.cmake
+@@ -1 +1 @@
+-Subproject commit 7a655e5aa959812439f387ba12c1fe01640589cf
++Subproject commit 7a655e5aa959812439f387ba12c1fe01640589cf-dirty
+diff --git a/Dependencies/v8inspector/CMakeLists.txt b/Dependencies/v8inspector/CMakeLists.txt
+index c1ce9fd..7fc3189 100644
+--- a/Dependencies/v8inspector/CMakeLists.txt
++++ b/Dependencies/v8inspector/CMakeLists.txt
+@@ -74,7 +74,7 @@ set(SOURCES
+     "Source/V8InspectorUtils.cpp")
+ 
+ add_library(v8inspector ${SOURCES})
+-warnings_as_errors(v8inspector)
++#warnings_as_errors(v8inspector)
+ 
+ target_include_directories(v8inspector PUBLIC "Include")
+ target_include_directories(v8inspector PRIVATE "Source")
+@@ -86,4 +86,9 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
+ target_link_to_dependencies(v8inspector PRIVATE asio)
+ target_link_to_dependencies(v8inspector PRIVATE llhttp)
+ target_link_to_dependencies(v8inspector PRIVATE javascript_engine)
++
++target_include_directories(v8inspector PUBLIC "/usr/include/v8")
++find_library(V8_LIBRARY v8)
++target_link_to_dependencies(v8inspector INTERFACE ${V8_LIBRARY})
++
+ disable_warnings(v8inspector)
+\ No newline at end of file
+diff --git a/Dependencies/v8inspector/Include/V8Inc.h b/Dependencies/v8inspector/Include/V8Inc.h
+index 851ab33..23aa8d6 100644
+--- a/Dependencies/v8inspector/Include/V8Inc.h
++++ b/Dependencies/v8inspector/Include/V8Inc.h
+@@ -1,14 +1,14 @@
+ #pragma once
+ 
+ #ifndef __clang__
+-#pragma warning(push)
+-#pragma warning(disable: 4100 4267 4127)
++//#pragma warning(push)
++//#pragma warning(disable: 4100 4267 4127)
+ #endif
+-
++#pragma GCC diagnostic ignored "-Wunused-parameter"
+ #include <v8.h>
+-#include <v8-inspector.h>
++#include </usr/include/nodejs/deps/v8/include/v8-inspector.h>
+ #include <libplatform/libplatform.h>
+ 
+ #ifndef __clang__
+-#pragma warning(pop)
++//#pragma warning(pop)
+ #endif
+\ No newline at end of file
+diff --git a/Dependencies/v8inspector/Source/V8InspectorAgent.cpp b/Dependencies/v8inspector/Source/V8InspectorAgent.cpp
+index 51653be..504c180 100644
+--- a/Dependencies/v8inspector/Source/V8InspectorAgent.cpp
++++ b/Dependencies/v8inspector/Source/V8InspectorAgent.cpp
+@@ -5,7 +5,7 @@
+ #include "V8InspectorSocketServer.h"
+ #include "V8InspectorUtils.h"
+ 
+-#include <v8-inspector.h>
++#include </usr/include/nodejs/deps/v8/include/v8-inspector.h>
+ #include <v8-platform.h>
+ 
+ #include <string.h>
+diff --git a/Dependencies/v8inspector/Source/V8InspectorUtils.cpp b/Dependencies/v8inspector/Source/V8InspectorUtils.cpp
+index 5a8969e..1193eb3 100644
+--- a/Dependencies/v8inspector/Source/V8InspectorUtils.cpp
++++ b/Dependencies/v8inspector/Source/V8InspectorUtils.cpp
+@@ -11,6 +11,9 @@
+ #include <stdexcept>
+ #include <codecvt>
+ 
++#include <string>
++#include <locale>
++
+ namespace Babylon {
+ namespace utils {
+ 
+diff --git a/Dependencies/v8inspector/Source/V8InspectorUtils.h b/Dependencies/v8inspector/Source/V8InspectorUtils.h
+index 5ea288a..3b425c7 100644
+--- a/Dependencies/v8inspector/Source/V8InspectorUtils.h
++++ b/Dependencies/v8inspector/Source/V8InspectorUtils.h
+@@ -4,6 +4,7 @@
+ #pragma once
+ 
+ #include <V8Inc.h>
++#include <cstring>
+ 
+ #include <string>
+ #include <algorithm>
+diff --git a/Plugins/ChromeDevTools/CMakeLists.txt b/Plugins/ChromeDevTools/CMakeLists.txt
+index 6b83298..006625a 100644
+--- a/Plugins/ChromeDevTools/CMakeLists.txt
++++ b/Plugins/ChromeDevTools/CMakeLists.txt
+@@ -9,6 +9,8 @@ if (WIN32)
+ elseif(ANDROID)
+     set(CHROME_DEVTOOLS_SUPPORTED_ENGINES ${CHROME_DEVTOOLS_SUPPORTED_ENGINES} "V8")
+ endif()
++set(CHROME_DEVTOOLS_SUPPORTED_ENGINES ${CHROME_DEVTOOLS_SUPPORTED_ENGINES} "V8")
++
+ 
+ if (NAPI_JAVASCRIPT_ENGINE IN_LIST CHROME_DEVTOOLS_SUPPORTED_ENGINES)
+     set(SOURCES ${SOURCES} "Source/ChromeDevTools${NAPI_JAVASCRIPT_ENGINE}.cpp")
